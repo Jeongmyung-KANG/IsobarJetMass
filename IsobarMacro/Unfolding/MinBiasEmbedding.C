@@ -60,9 +60,10 @@ void eventLoop(){
 
   for (int i = 0; i < priorTree->GetEntries(); i++) { 
     //int testMB_index = MinBiasEventIndexExtraction(); 
+    priorTree->GetEntry(i); 
     int callIndex = gRandom->Uniform(0, summaryTree->GetEntries());
     summaryTree->GetEntry(callIndex-1); 
-    cout << eventClassNumber << " " << fileIndex << endl; 
+    //cout << eventClassNumber << " " << fileIndex << endl; 
     //cout << fileIndex << " " << eventIndex << endl;
     
     TString MinBiasName = Form("/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/%d/METracks_%d.root", eventClassNumber, fileIndex);
@@ -71,8 +72,15 @@ void eventLoop(){
     MinBiasTree->SetBranchAddress("tracks", &tca_MB_tracks); 
 
     MinBiasTree->GetEntry(eventIndex);
+
+    //for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
+
+    //}
+    
+    cout << MinBiasName << " " << fileIndex << " " << "nTracks of prior : " << tca_priorTracks->GetEntriesFast() << " nTracks of MB : " << tca_MB_tracks->GetEntries() << endl; 
     
     tca_priorTracks->Delete(); 
+    tca_MB_tracks->Delete(); 
     finMinBias->Close(); 
   }
 } 
