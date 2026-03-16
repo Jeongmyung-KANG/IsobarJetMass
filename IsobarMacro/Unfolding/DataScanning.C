@@ -36,10 +36,11 @@ void DataScanning(){
 #endif
 
 
-  int inputIndex = 1; 
+  int inputIndex = 1;  
+  int eventClassNumber = -999;
   int cumEventNumber = 0;  
   int eventIndex; 
-  int fileIndex; 
+  int fileIndex = 0; 
 
   fout = new TFile(Form("MB_summary.root"), "RECREATE"); 
   outtree = new TTree("summaryTree", "summaryTree"); 
@@ -59,13 +60,39 @@ void DataScanning(){
     path += dir.Data();  
     
     if (!fs::exists(path)) {
-      cout << path << " " << "dir deos not exist" << endl;
+      //cout << path << " " << "dir deos not exist" << endl;
       continue;
     }
 
-    for (const auto& entry : fs::directory_iterator(path)){  
-      TString MB_rootFileName = TString(entry.path());  
+    for (const auto& entry : fs::directory_iterator(path)){   
+      if (!fs::is_regular_file(entry.path())) continue;
+
+      std::string name = entry.path().stem();   // METracks_11202
+      std::string number = name.substr(name.find("_") + 1); 
+      fileIndex = stoi(number); 
+
+      TString MB_rootFileName = TString(entry.path());    
+      cout << number << " " << MB_rootFileName  << endl;  
+
+      TFile *fin = TFile::Open(MB_rootFileName); 
+      if (!fin) {
+        cout << "root file is not exist" << endl; 
+        continue; 
+      }
       
+      TTree *MB_tree = (TTree*)fin->Get("tree");
+      int entries = MB_tree->GetEntries(); 
+      cout << "     file opening : " << MB_rootFileName << " " << entries<< endl;   
+      
+      for (int e = 0; e < entries; e++){ 
+        cumEventNumber ++;
+        eventClassNumber = i;
+        eventIndex = e;
+        outtree->Fill(); 
+        cout << cumEventNumber << " " << eventClassNumber << " " << eventIndex << " " << endl;
+      }
+      
+      fin->Close(); 
     }
 
   }
