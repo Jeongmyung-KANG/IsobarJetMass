@@ -3,7 +3,11 @@
 TFile *fin_pythia_fastSim; 
 TFile *fout;
 TFile *f_mb_summary;
+
+TTree *outtree; 
 TTree *summaryTree;
+
+TClonesArray *tca_embeddedTracks; 
 
 int cumEventNumber; 
 int eventIndex;
@@ -28,7 +32,8 @@ void init(int p6FileIndex){
   summaryTree->SetBranchAddress("eventIndex", &eventIndex);
   summaryTree->SetBranchAddress("eventClassNumber", &eventClassNumber); 
   summaryTree->SetBranchAddress("fileIndex", &fileIndex); 
-
+  outtree = new TTree("tree", "tree"); 
+  tca_embeddedTracks = new TClonesArray("TParticle", 1000000); 
   //priorTree = (TTree*)fin_pythia_fastSim->Get("outtree"); 
   //if (!priorTree) {cout << "TREE IS FUNCKING EMPTY" << endl;}
 } 
@@ -72,10 +77,20 @@ void eventLoop(){
     MinBiasTree->SetBranchAddress("tracks", &tca_MB_tracks); 
 
     MinBiasTree->GetEntry(eventIndex);
+    
+    int fillIndex = 0;
 
-    //for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
+    for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
+      TParticle *priorTrack = (TParticle*)tca_priorTracks->At(ei);
+      //cout << fillIndex << "/" << tca_priorTracks->GetEntriesFast() +  tca_MB_tracks->GetEntries() << " prior tracks : " << priorTrack->Pt() << endl;  
+      fillIndex++; 
+    }
 
-    //}
+    for (int ei = 0; ei < tca_MB_tracks->GetEntriesFast(); ei++) {
+      TParticle *MbTracks = (TParticle*)tca_MB_tracks->At(ei);
+      //cout << fillIndex << "/" << tca_priorTracks->GetEntriesFast() +  tca_MB_tracks->GetEntries() << " mb tracks : " << MbTracks->Pt() << endl; 
+      fillIndex++; 
+    }
     
     cout << MinBiasName << " " << fileIndex << " " << "nTracks of prior : " << tca_priorTracks->GetEntriesFast() << " nTracks of MB : " << tca_MB_tracks->GetEntries() << endl; 
     
