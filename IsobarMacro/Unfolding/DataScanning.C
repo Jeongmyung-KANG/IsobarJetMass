@@ -47,6 +47,7 @@ void DataScanning(){
   outtree->Branch("cumEventNumber", &cumEventNumber); 
   outtree->Branch("eventIndex", &eventIndex);
   outtree->Branch("fileIndex", &fileIndex); 
+  outtree->Branch("eventClassNumber", &eventClassNumber);
 
   
   for (int i = 0; i < 640; i++){ 
