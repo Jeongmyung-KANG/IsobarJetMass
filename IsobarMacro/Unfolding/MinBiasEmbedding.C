@@ -84,6 +84,15 @@ void init(int p6FileIndex, int kSys, int kCentrality){
     outtree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
     //priorTree = (TTree*)fin_pythia_fastSim->Get("outtree"); 
     //if (!priorTree) {cout << "TREE IS FUNCKING EMPTY" << endl;}
+    h_prior_pt_fs = new TH1F("h_prior_pt_fs", "h_prior_pt_fs", 1000, 0, 20);
+    h_prior_pt    = new TH1F("h_prior_pt",    "h_prior_pt"   , 1000, 0, 20); 
+    h_prior_phi    = new TH1F("h_prior_phi",    "h_prior_phi"   , 1000, -10, 10); 
+    h_prior_eta    = new TH1F("h_prior_eta",    "h_prior_eta"   , 1000, -5, 5); 
+
+    h_prior_pt_fs->Sumw2(); 
+    h_prior_pt->Sumw2(); 
+    h_prior_phi->Sumw2(); 
+    h_prior_eta->Sumw2();
 } 
 
 bool doDiceRoll(double charge, double pt) {
@@ -107,7 +116,7 @@ void eventLoop(){
   cout << priorTree->GetEntries() << endl; 
   
   //int nPriorEvents = priorTree->GetEntries();
-  int nPriorEvents = 100;
+  int nPriorEvents = 5000;
 
   for (int i = 0; i < nPriorEvents; i++) { 
     cout << "event : " << i << endl; 
@@ -129,7 +138,9 @@ void eventLoop(){
     for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
       TParticle *priorTrack = (TParticle*)tca_priorTracks->At(ei);
       bool isPassFastSim = doDiceRoll(1, priorTrack->Pt());
+      h_prior_pt->Fill(priorTrack->Pt());
       if (!isPassFastSim) continue;
+      h_prior_pt_fs->Fill(priorTrack->Pt());
       TParticle* eTrack = new((*tca_embeddedTracks)[fillIndex]) TParticle();
       eTrack->SetMomentum(priorTrack->Px(), priorTrack->Py(), priorTrack->Pz(), priorTrack->Energy());
       eTrack->SetPdgCode(981223); 
@@ -157,7 +168,7 @@ void eventLoop(){
 
 void finish(){ 
   fout->cd(); 
-  outtree->Write();
+  //outtree->Write();
   fout->Write(); 
   fout->Close(); 
 }
