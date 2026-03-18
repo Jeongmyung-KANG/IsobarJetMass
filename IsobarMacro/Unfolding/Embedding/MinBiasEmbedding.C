@@ -115,7 +115,7 @@ void init(int p6FileIndex, int kSys, int kCentrality){
     embeddedTree = new TTree("embeddedTree", "embeddedTree"); 
     tca_embeddedTracks = new TClonesArray("TParticle", 1000000); 
     tca_priorJets = new TClonesArray("TParticle", 1000000); 
-    //embeddedTree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
+    embeddedTree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
     embeddedTree->Branch("priorJets", "TClonesArray", &tca_priorJets); 
     embeddedTree->Branch("triggerPt", &trigPt);
     embeddedTree->Branch("triggerPhi", &trigPhi);
@@ -173,7 +173,6 @@ void eventLoop(){
 
     MinBiasTree->GetEntry(eventIndex);
     
-    int fillIndex = 0;
 
     vector<PseudoJet> vec_priorTracks;
     vector<PseudoJet> vec_embeddedJets;
@@ -217,6 +216,8 @@ void eventLoop(){
     ClusterSequenceArea csa_priorJets(vec_priorTracks, jet_def, area_def); 
     vector<PseudoJet> priorJets = sorted_by_pt(csa_priorJets.inclusive_jets());
 
+    int fillIndex = 0;
+
     for (int ei = 0; ei < priorJets.size(); ei++) {
       PseudoJet priorJet = priorJets[ei];
       double jet_eta = priorJet.eta(); 
@@ -229,11 +230,10 @@ void eventLoop(){
       vec_embeddedJets.push_back(priorJet); 
       TParticle *jet_as_track = new((*tca_embeddedTracks)[fillIndex]) TParticle();
       jet_as_track->SetMomentum(priorJet.px(), priorJet.py(), priorJet.pz(), priorJet.e());
-      jet_as_track->SetFirstMother(981223);
-      jet_as_track->SetPdgCode(981223);
+      //jet_as_track->SetFirstMother(981223);
+      //jet_as_track->SetPdgCode(981223);
 
       fillIndex++;
-
     }
 
 
