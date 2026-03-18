@@ -10,7 +10,7 @@ ROOTLIBS = $(shell root-config --libs) -lEG
 all: sep.bin
 
 sep.bin: mixingTest.o  
-	${CXX} ${CFLAGS} $^ -o$@ ${ROOTLIBS}
+	${CXX} ${CFLAGS} $^ -o$@ ${ROOTLIBS} `fastjet-config --cxxflags --libs --plugins`
 
 mixingTest.o: MinBiasEmbedding.C
 	${CXX} -fPIC  -c ${CFLAGS} $< -o $@
