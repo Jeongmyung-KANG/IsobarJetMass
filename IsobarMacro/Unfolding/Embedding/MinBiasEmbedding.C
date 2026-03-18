@@ -206,6 +206,7 @@ void eventLoop(){
       //cout << fillIndex << "/" << tca_priorTracks->GetEntriesFast() +  tca_MB_tracks->GetEntries() << " prior tracks : " << priorTrack->Pt() << endl;  
     }
     
+    if (vec_trigPt.size() == 0) continue;
     int triggerTrackIndex = gRandom->Uniform(vec_trigPt.size());
     trigPt = vec_trigPt[triggerTrackIndex]; 
     trigPhi = vec_trigPhi[triggerTrackIndex];
