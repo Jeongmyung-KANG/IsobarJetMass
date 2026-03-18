@@ -57,7 +57,7 @@ TFile *fin_pythia_fastSim;
 TFile *fout;
 TFile *f_mb_summary;
 
-TTree *outtree; 
+TTree *embeddedTree; 
 TTree *summaryTree;
 
 TClonesArray *tca_priorJets;
@@ -112,13 +112,13 @@ void init(int p6FileIndex, int kSys, int kCentrality){
     summaryTree->SetBranchAddress("eventIndex", &eventIndex);
     summaryTree->SetBranchAddress("eventClassNumber", &eventClassNumber); 
     summaryTree->SetBranchAddress("fileIndex", &fileIndex); 
-    outtree = new TTree("outtree", "outtree"); 
+    embeddedTree = new TTree("embeddedTree", "embeddedTree"); 
     tca_embeddedTracks = new TClonesArray("TParticle", 1000000); 
     tca_priorJets = new TClonesArray("TParticle", 1000000); 
-    outtree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
-    outtree->Branch("priorJets", "TClonesArray", &tca_priorJets); 
-    outtree->Branch("triggerPt", &trigPt);
-    outtree->Branch("triggerPhi", &trigPhi);
+    //embeddedTree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
+    embeddedTree->Branch("priorJets", "TClonesArray", &tca_priorJets); 
+    embeddedTree->Branch("triggerPt", &trigPt);
+    embeddedTree->Branch("triggerPhi", &trigPhi);
 
     //priorTree = (TTree*)fin_pythia_fastSim->Get("outtree"); 
     //if (!priorTree) {cout << "TREE IS FUNCKING EMPTY" << endl;}
@@ -156,12 +156,12 @@ void eventLoop(){
   
 
   //int nPriorEvents = priorTree->GetEntries();
-  int nPriorEvents = 10000;
+  int nPriorEvents = 5000;
   cout << "tot event : " << priorTree->GetEntries() << endl;
   for (int i = 0; i < nPriorEvents; i++) { 
     if (i % 1000 ==0) cout << "event : " << i << endl; 
     priorTree->GetEntry(i); 
-    int callIndex = gRandom->Uniform(0, summaryTree->GetEntries());
+    int callIndex = gRandom->Uniform(1, summaryTree->GetEntries());
     summaryTree->GetEntry(callIndex-1); 
     //cout << eventClassNumber << " " << fileIndex << endl; 
     //cout << fileIndex << " " << eventIndex << endl;
@@ -197,7 +197,6 @@ void eventLoop(){
         vec_trigPhi.push_back(priorTrackPhi); 
       }
 
-      if (priorTrack->Pt())
       if (!isPassFastSim) continue;
 
       h_prior_pt_fs->Fill(priorTrack->Pt());
@@ -250,19 +249,18 @@ void eventLoop(){
     //cout << priorJets.size() << " " << tca_MB_tracks->GetEntriesFast() << " " << vec_embeddedJets.size() << endl; 
     //cout << MinBiasName << " " << fileIndex << " " << "nTracks of prior : " << tca_priorTracks->GetEntriesFast() << " nTracks of MB : " << tca_MB_tracks->GetEntries() << endl; 
 
-    outtree->Fill(); 
+    embeddedTree->Fill(); 
     tca_priorJets->Clear();
     tca_embeddedTracks->Clear(); 
     tca_priorTracks->Clear(); 
     tca_MB_tracks->Clear(); 
-
     finMinBias->Close(); 
   }
 } 
 
 void finish(){ 
   fout->cd(); 
-  outtree->Write();
+  embeddedTree->Write();
   //fout->Write(); 
   fout->Close(); 
 }
@@ -276,6 +274,7 @@ void MinBiasEmbedding(){
   eventLoop();
 
   finish();
+
 }
 
 
