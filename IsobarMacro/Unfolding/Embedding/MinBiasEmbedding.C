@@ -61,7 +61,8 @@ TTree *embeddedTree;
 TTree *summaryTree;
 
 TClonesArray *tca_priorJets;
-TClonesArray *tca_embeddedTracks; 
+TClonesArray *tca_hybridTracks;
+TClonesArray *tca_pltLevelTracks;  
 
 int cumEventNumber; 
 int eventIndex;
@@ -99,7 +100,6 @@ void init(int p6FileIndex, int kSys, int kCentrality){
     fin_pythia_fastSim = TFile::Open(p6FileName); 
     f_mb_summary = TFile::Open(Form("/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/Embedding/MB_summary.root"));
     summaryTree = (TTree*)f_mb_summary->Get("summaryTree");
-    fout = new TFile(Form("%s_%s_embeddedTree.root", SysName[kSys].Data(), CentralityName[kCentrality].Data()), "RECREATE");
 
   #else 
   TString p6FileName = Form("p6out_%d.root", p6FileIndex);    
@@ -112,14 +112,18 @@ void init(int p6FileIndex, int kSys, int kCentrality){
     summaryTree->SetBranchAddress("eventIndex", &eventIndex);
     summaryTree->SetBranchAddress("eventClassNumber", &eventClassNumber); 
     summaryTree->SetBranchAddress("fileIndex", &fileIndex); 
+    
+    
+
+    fout = new TFile(Form("%s_%s_embeddedTree.root", SysName[kSys].Data(), CentralityName[kCentrality].Data()), "RECREATE");
     embeddedTree = new TTree("embeddedTree", "embeddedTree"); 
-    tca_embeddedTracks = new TClonesArray("TParticle", 1000000); 
+    tca_hybridTracks = new TClonesArray("TParticle", 1000000); 
     tca_priorJets = new TClonesArray("TParticle", 1000000); 
-    embeddedTree->Branch("tracks", "TClonesArray", &tca_embeddedTracks);
+    embeddedTree->Branch("tracks", "TClonesArray", &tca_hybridTracks);
     embeddedTree->Branch("priorJets", "TClonesArray", &tca_priorJets); 
     embeddedTree->Branch("triggerPt", &trigPt);
     embeddedTree->Branch("triggerPhi", &trigPhi);
-
+    
     //priorTree = (TTree*)fin_pythia_fastSim->Get("outtree"); 
     //if (!priorTree) {cout << "TREE IS FUNCKING EMPTY" << endl;}
     h_prior_pt_fs = new TH1F("h_prior_pt_fs", "h_prior_pt_fs", 1000, 0, 20);
@@ -156,7 +160,7 @@ void eventLoop(){
   
 
   //int nPriorEvents = priorTree->GetEntries();
-  int nPriorEvents = 5000;
+  int nPriorEvents = 1500;
   cout << "tot event : " << priorTree->GetEntries() << endl;
   for (int i = 0; i < nPriorEvents; i++) { 
     if (i % 1000 ==0) cout << "event : " << i << endl; 
@@ -174,7 +178,7 @@ void eventLoop(){
     MinBiasTree->GetEntry(eventIndex);
     
 
-    vector<PseudoJet> vec_priorTracks;
+    vector<PseudoJet> vec_detLevelTrakcs;
     vector<PseudoJet> vec_embeddedJets;
 
     vector<double> vec_trigPhi;
@@ -184,10 +188,13 @@ void eventLoop(){
 
     for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
       TParticle *priorTrack = (TParticle*)tca_priorTracks->At(ei);
+      if (priorTrack->Pt() < 0.2) continue;
+      if (TMath::Abs(priorTrack->Eta()) > 1.0) continue;
       bool isPassFastSim = doDiceRoll(1, priorTrack->Pt());
       h_prior_pt->Fill(priorTrack->Pt());
       h_prior_phi->Fill(priorTrack->Phi());
       h_prior_eta->Fill(priorTrack->Eta());
+
       double priorTrackPt = priorTrack->Pt(); 
       double priorTrackPhi = priorTrack->Phi();
 
@@ -200,7 +207,7 @@ void eventLoop(){
 
       h_prior_pt_fs->Fill(priorTrack->Pt());
       PseudoJet track = PseudoJet(priorTrack->Px(), priorTrack->Py(), priorTrack->Pz(), priorTrack->Energy());
-      vec_priorTracks.push_back(track); 
+      vec_detLevelTrakcs.push_back(track); 
       //cout << fillIndex << "/" << tca_priorTracks->GetEntriesFast() +  tca_MB_tracks->GetEntries() << " prior tracks : " << priorTrack->Pt() << endl;  
     }
     
@@ -213,55 +220,47 @@ void eventLoop(){
     GhostedAreaSpec  area_spec(1.0);
     AreaDefinition  area_def(active_area, GhostedAreaSpec(1.0, 1, 0.01));
 
-    ClusterSequenceArea csa_priorJets(vec_priorTracks, jet_def, area_def); 
-    vector<PseudoJet> priorJets = sorted_by_pt(csa_priorJets.inclusive_jets());
+    ClusterSequenceArea csa_detLevelJets(vec_detLevelTrakcs, jet_def, area_def); 
+    vector<PseudoJet> detLevelJets = sorted_by_pt(csa_detLevelJets.inclusive_jets());
 
-    int fillIndex = 0;
+    vector<PseudoJet> hybridJets;
 
-    for (int ei = 0; ei < priorJets.size(); ei++) {
-      PseudoJet priorJet = priorJets[ei];
-      double jet_eta = priorJet.eta(); 
-      TParticle *priorJet_as_track = new((*tca_priorJets)[ei]) TParticle();
-      priorJet_as_track->SetMomentum(priorJet.px(), priorJet.py(), priorJet.pz(), priorJet.e());
-
-      if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
-
-      priorJet.set_user_index(981223); 
-      vec_embeddedJets.push_back(priorJet); 
-      TParticle *jet_as_track = new((*tca_embeddedTracks)[fillIndex]) TParticle();
-      jet_as_track->SetMomentum(priorJet.px(), priorJet.py(), priorJet.pz(), priorJet.e());
-      //jet_as_track->SetFirstMother(981223);
-      //jet_as_track->SetPdgCode(981223);
-
-      fillIndex++;
+    for (int ei = 0; ei < detLevelJets.size(); ei++) {
+        PseudoJet detJet = detLevelJets[ei];
+        double jet_eta = detJet.eta(); 
+        if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
+        detJet.set_user_index(981223); 
+        hybridJets.push_back(detJet);
     }
-
 
     for (int ei = 0; ei < tca_MB_tracks->GetEntriesFast(); ei++) {
       TParticle *MbTracks = (TParticle*)tca_MB_tracks->At(ei);
-      TParticle *e_mb_track = new((*tca_embeddedTracks)[fillIndex]) TParticle();
-      e_mb_track->SetMomentum(MbTracks->Px(), MbTracks->Py(), MbTracks->Pz(), MbTracks->Energy());
-      //vec_embeddedJets.push_back(MbTracks->Px(), MbTracks->Py(), MbTracks->Pz(), MbTracks.Energy()); 
-      //cout << fillIndex << "/" << tca_priorTracks->GetEntriesFast() +  tca_MB_tracks->GetEntries() << " mb tracks : " << MbTracks->Pt() << endl; 
-      fillIndex++; 
+      hybridJets.push_back(PseudoJet(MbTracks->Px(), MbTracks->Py(), MbTracks->Pz(), MbTracks->Energy())); 
     }
     
-    //cout << priorJets.size() << " " << tca_MB_tracks->GetEntriesFast() << " " << vec_embeddedJets.size() << endl; 
-    //cout << MinBiasName << " " << fileIndex << " " << "nTracks of prior : " << tca_priorTracks->GetEntriesFast() << " nTracks of MB : " << tca_MB_tracks->GetEntries() << endl; 
+    //cout << MinBiasTree->GetEntries() << endl;
 
+    TParticle *jet_as_track;
+    for (int ei = 0; ei < hybridJets.size(); ei++){
+      PseudoJet hybridJet = hybridJets[ei];
+      jet_as_track = new((*tca_hybridTracks)[ei]) TParticle();
+      jet_as_track->SetMomentum(hybridJet.px(), hybridJet.py(), hybridJet.pz(), hybridJet.e()); 
+    }
+
+    //cout << hybridJets.size() << endl; 
     embeddedTree->Fill(); 
-    tca_priorJets->Clear();
-    tca_embeddedTracks->Clear(); 
-    tca_priorTracks->Clear(); 
-    tca_MB_tracks->Clear(); 
+    tca_priorJets->Delete();
+    tca_hybridTracks->Delete(); 
+    tca_priorTracks->Delete(); 
+    tca_MB_tracks->Delete(); 
     finMinBias->Close(); 
   }
 } 
 
 void finish(){ 
   fout->cd(); 
-  embeddedTree->Write();
-  //fout->Write(); 
+  //embeddedTree->Write();
+  fout->Write(); 
   fout->Close(); 
 }
 
