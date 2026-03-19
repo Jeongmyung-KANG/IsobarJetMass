@@ -19,7 +19,7 @@ class TrackLevelJetArray : public TObject{
         void SetArea (double a); 
         void SetAreaFourVector(double _ax, double _ay, double _az, double _ae);
         void SetUserIndex(int i); 
-        void SetPtc(double rho); 
+        void SetPtc(double r);    
         
         double px() const {return __px;} 
         double py() const {return __py;}

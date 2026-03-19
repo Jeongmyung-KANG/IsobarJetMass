@@ -10,4 +10,4 @@ void TrackLevelJetArray::SetPhiEta(double p, double e) {__phi = p, __eta = e;}
 void TrackLevelJetArray::SetArea(double a) {__area = a;}
 void TrackLevelJetArray::SetAreaFourVector(double x, double y, double z, double e) {__ax =x; __ay = y; __az = z; __ae = e;}
 void TrackLevelJetArray::SetUserIndex(int i) {__userIndex = i;}
-void TrackLevelJetArray::SetPtc(double rho) {__ptc = __pt - __area * rho;}
+void TrackLevelJetArray::SetPtc(double r) {__ptc = r;}
