@@ -16,23 +16,36 @@ class TrackLevelJetArray : public TObject{
 
         void SetPxPyPzE(double x, double y, double z, double _e);
         void SetPhiEta(double p, double e);
+        void SetArea (double a); 
         void SetAreaFourVector(double _ax, double _ay, double _az, double _ae);
-
-        double Px() const {return px;}
+        void SetUserIndex(int i); 
+        void SetPtc(double rho); 
+        
+        double px() const {return __px;} 
+        double py() const {return __py;}
+        double pz() const {return __pz;}
+        double e() const  {return __e;}
+        double ptc() const {return __ptc;}
+        double phi() const {return __phi;}
+        double eta() const {return __eta;}
+        double m() const {return __m;}
+        double area() const {return __area;}
 
         ClassDef(TrackLevelJetArray, 1);
     
     private :
-        double px; 
-        double py;
-        double pz;
-        double e;
-        double pt;
-        double eta;
-        double phi; 
-        double m;
-        double area;
-        double ax, ay, az, ae; 
+        double __px; 
+        double __py;
+        double __pz;
+        double __e;
+        double __pt;
+        double __eta;
+        double __phi; 
+        double __m;
+        double __area;
+        double __ax, __ay, __az, __ae; 
+        double __ptc;
+        bool __userIndex;
 };
 
 
