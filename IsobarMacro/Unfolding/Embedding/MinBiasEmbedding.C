@@ -29,7 +29,7 @@ using namespace std;
 using namespace fastjet;
 
 const double jetRadius = 0.4; 
-
+const double areaCut = 0.35;
 const int priorJetIndex = 181818;
 const int priorRecoilJetIndex = 981223;
 
@@ -112,7 +112,7 @@ void init(int p6FileIndex, int kHatBinType, int kSys, int kCentrality){
     }
 
 #ifdef LOCALTEST 
-    TString p6FileName = "../genMc/mc_res_40200_1.root";   
+    TString p6FileName = Form("../genMc/mc_res_%s_1.root", pythiaHatBinName.Data());   
     fin_pythia_fastSim = TFile::Open(p6FileName); 
     f_mb_summary = TFile::Open(Form("/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/Embedding/MB_summary.root"));
     summaryTree = (TTree*)f_mb_summary->Get("summaryTree");
@@ -163,6 +163,9 @@ bool doDiceRoll(double charge, double pt) {
     double ref_dice;
     if (charge > 0) { 
         ref_dice = eff_pos->Eval(pt); 
+    }
+    if (charge < 0) { 
+        ref_dice = eff_neg->Eval(pt); 
     }
     //cout << pt << " " << dice << " " << ref_dice << endl; 
     if (dice < ref_dice) result = true;
@@ -277,19 +280,18 @@ void eventLoop(){
       if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
 
       if (isRecoil) {
-        jet.set_user_index(45600 + ji); 
+        jet.set_user_index(ji); 
         TrackLevelJetArray *detJet = new ((*tca_detLevelJets)[fillIndex]) TrackLevelJetArray();
         detJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
         detJet->SetPhiEta(jet_phi, jet_eta); 
         detJet->SetArea(jet.area()); 
+        detJet->SetUserIndex(ji);
         recoLevelTracks.push_back(jet);
         fillIndex++;
       } 
       
       if (!isRecoil) {
-        jet.set_user_index(12300 + ji); 
         recoLevelTracks.push_back(jet);
-
       }
       //cout << "   " << jet.user_index() << " " << detLevelJets.size() << endl;
     }
@@ -338,18 +340,30 @@ void eventLoop(){
           priorPtVector.push_back(consti.pt());
           }
       }
+
       if(priorIndexVector.size() > 1) {
+        double largestPt = -999;
         cout << priorIndexVector.size() << endl;
         for (int ct = 0; ct < priorIndexVector.size(); ct++) {
-            cout << " " << priorIndexVector[ct] << " " << priorPtVector[ct] << endl; 
-            if (priorIndexVector[ct] > 12300 && priorIndexVector[ct] < 45600) {
-              cout << "    crossCheck : " << detLevelJets[priorIndexVector[ct]- 12300].pt() << endl;
-              }
+            int priorRecoilIndex = priorIndexVector[ct]; 
+            double priorRecoilPt = priorPtVector[ct];
+            if (largestPt < priorRecoilPt) {
+              largestPt = priorRecoilPt;
+              tmpIndex = priorRecoilIndex;
+            }
+            //cout << " " << priorIndexVector[ct] << " " << priorPtVector[ct] << endl; 
+            //cout << "   CrossCheck : " <<  detLevelJets[priorRecoilIndex].pt() << endl;
           }
+        //cout << "---------> largest pt : " << largestPt << " "<< tmpIndex << " " << detLevelJets[tmpIndex].pt() << endl;
         }
+
+      //cout << "ORDINARY CASE : " << 
+      if (tmpIndex > 0) cout << tmpIndex << endl;
+
       jet.set_user_index(tmpIndex); 
       if (!(dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4)) continue;
       if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
+      if (area < areaCut) continue; 
       TrackLevelJetArray *recoJet = new ((*tca_recoLevelJets)[fillIndex]) TrackLevelJetArray();
       recoJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
       recoJet->SetPhiEta(jet_phi, jet_eta); 
