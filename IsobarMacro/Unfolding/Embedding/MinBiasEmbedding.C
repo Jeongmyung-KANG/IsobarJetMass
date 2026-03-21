@@ -84,20 +84,6 @@ TString pythiaHatBinName = "";
 double trigPhi;
 double trigPt; 
 
-
-vector<PseudoJet> JetEmbedding(TClonesArray *tca, vector<PseudoJet> priorJets) {
-  
-  int nTracks = tca->GetEntriesFast(); 
-  for (int i = 0; i < nTracks; i++){
-    TParticle *track = (TParticle*)tca->At(i);
-    if (TMath::Abs(track->Eta()) > 1.0) continue;
-    if (track->Pt() < 0.2) continue;
-    priorJets.push_back(PseudoJet(track->Px(), track->Py(), track->Pz(), track->Energy()));
-  }
-
-  return priorJets; 
-}
-
 void init(int p6FileIndex, int kHatBinType, int kSys, int kCentrality){     
     gRandom->SetSeed(p6FileIndex); 
     pythiaWeight = HatBinWeights[kHatBinType];
@@ -265,19 +251,6 @@ void eventLoop(){
     pltLevelJets = sorted_by_pt(csa_pltLevelJets.inclusive_jets()); 
     detLevelJets = sorted_by_pt(csa_detLevelJets.inclusive_jets());
 
-    recoLevelTracks = JetEmbedding(tca_MB_tracks, detLevelJets);
-    ClusterSequenceArea csa_recoLevelJets(recoLevelTracks, jet_def, area_def);
-    recoLevelJets = sorted_by_pt(csa_recoLevelJets.inclusive_jets()); 
-    cout << detLevelJets.size() << " " << recoLevelJets.size() << endl;
-    JetDefinition jet_def_bkgd(kt_algorithm, 0.4); 
-    AreaDefinition area_def_bkgd(active_area_explicit_ghosts, GhostedAreaSpec(1.0, 1, 0.01)); 
-    Selector selector = SelectorAbsEtaMax(1.0) * !SelectorNHardest(2) * SelectorPtMin(0.001); 
-    JetMedianBackgroundEstimator bkgd_estimator(selector, jet_def_bkgd, area_def_bkgd); 
-    bkgd_estimator.set_particles(recoLevelTracks);
-
-    double rho = bkgd_estimator.rho(); 
-    double rhoM = bkgd_estimator.rho_m(); 
-
     int fillIndex = 0; 
     for (int ji=0; ji<pltLevelJets.size(); ji++){
       PseudoJet jet = pltLevelJets[ji];
@@ -300,16 +273,49 @@ void eventLoop(){
       double jet_phi = jet.phi(); 
       double jet_eta = jet.eta(); 
       double dphi = TVector2::Phi_0_2pi(trigPhi - jet_phi);
-      if (!(dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4)) continue;
+      bool isRecoil = (dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4);
       if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
-      TrackLevelJetArray *detJet = new ((*tca_detLevelJets)[fillIndex]) TrackLevelJetArray();
-      detJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
-      detJet->SetPhiEta(jet_phi, jet_eta); 
-      detJet->SetArea(jet.area()); 
-      fillIndex++;
+
+      if (isRecoil) {
+        jet.set_user_index(45600 + ji); 
+        TrackLevelJetArray *detJet = new ((*tca_detLevelJets)[fillIndex]) TrackLevelJetArray();
+        detJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
+        detJet->SetPhiEta(jet_phi, jet_eta); 
+        detJet->SetArea(jet.area()); 
+        recoLevelTracks.push_back(jet);
+        fillIndex++;
+      } 
       
+      if (!isRecoil) {
+        jet.set_user_index(12300 + ji); 
+        recoLevelTracks.push_back(jet);
+
+      }
+      //cout << "   " << jet.user_index() << " " << detLevelJets.size() << endl;
     }
     fillIndex=0;
+
+    //recoLevelTracks = JetEmbedding(tca_MB_tracks, detLevelJets);
+    for (int jei = 0; jei < tca_MB_tracks->GetEntriesFast(); jei++){
+      TParticle *mb_track = (TParticle*)tca_MB_tracks->At(jei);
+      double track_eta = mb_track->Eta(); 
+      double track_pt  = mb_track->Pt(); 
+      if (TMath::Abs(track_eta) > 1.0) continue;
+      if (track_pt < 0.2) continue;
+      recoLevelTracks.push_back(PseudoJet(mb_track->Px(), mb_track->Py(), mb_track->Pz(), mb_track->Energy()));
+    }
+
+    ClusterSequenceArea csa_recoLevelJets(recoLevelTracks, jet_def, area_def);
+    recoLevelJets = sorted_by_pt(csa_recoLevelJets.inclusive_jets()); 
+    //cout << pltLevelJets.size() << " " << detLevelJets.size() << " " << tca_MB_tracks->GetEntriesFast() << " " << recoLevelTracks.size() << endl;
+    //cout << "   " << detLevelJets.size() << " " << pltLevelJets.size() << " " << recoLevelJets.size() << endl;
+    JetDefinition jet_def_bkgd(kt_algorithm, 0.4); 
+    AreaDefinition area_def_bkgd(active_area_explicit_ghosts, GhostedAreaSpec(1.0, 1, 0.01)); 
+    Selector selector = SelectorAbsEtaMax(1.0) * !SelectorNHardest(2) * SelectorPtMin(0.001); 
+    JetMedianBackgroundEstimator bkgd_estimator(selector, jet_def_bkgd, area_def_bkgd); 
+    bkgd_estimator.set_particles(recoLevelTracks);
+    double rho = bkgd_estimator.rho(); 
+    double rhoM = bkgd_estimator.rho_m(); 
 
     for (int ji=0; ji<recoLevelJets.size(); ji++){ 
       PseudoJet jet = recoLevelJets[ji];
@@ -319,6 +325,29 @@ void eventLoop(){
       double area = jet.area(); 
       double ptc = pt - rho * area;
       double dphi = TVector2::Phi_0_2pi(trigPhi - jet_phi);
+      vector<PseudoJet> consties = jet.constituents();
+      int tmpIndex = -1;
+      vector<int> priorIndexVector;
+      vector<double> priorPtVector;
+      for (int c = 0; c < consties.size(); c++) { 
+        PseudoJet consti = consties[c];
+        int index = consti.user_index(); 
+        if (index > 0) {
+          tmpIndex = index; 
+          priorIndexVector.push_back(index); 
+          priorPtVector.push_back(consti.pt());
+          }
+      }
+      if(priorIndexVector.size() > 1) {
+        cout << priorIndexVector.size() << endl;
+        for (int ct = 0; ct < priorIndexVector.size(); ct++) {
+            cout << " " << priorIndexVector[ct] << " " << priorPtVector[ct] << endl; 
+            if (priorIndexVector[ct] > 12300 && priorIndexVector[ct] < 45600) {
+              cout << "    crossCheck : " << detLevelJets[priorIndexVector[ct]- 12300].pt() << endl;
+              }
+          }
+        }
+      jet.set_user_index(tmpIndex); 
       if (!(dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4)) continue;
       if (TMath::Abs(jet_eta) > 1.0 - jetRadius) continue;
       TrackLevelJetArray *recoJet = new ((*tca_recoLevelJets)[fillIndex]) TrackLevelJetArray();
@@ -326,6 +355,8 @@ void eventLoop(){
       recoJet->SetPhiEta(jet_phi, jet_eta); 
       recoJet->SetArea(jet.area()); 
       recoJet->SetPtc(ptc);
+      recoJet->SetUserIndex(tmpIndex);
+      //cout << "  input index : " << jet.user_index() << " result index : " << recoJet->userIndex()<< endl; 
       fillIndex++;
     }
     fillIndex=0;
