@@ -216,6 +216,7 @@ void eventLoop(){
       TParticle *priorTrack = (TParticle*)tca_priorTracks->At(ei);
       if (priorTrack->Pt() < 0.2) continue;
       if (TMath::Abs(priorTrack->Eta()) > 1.0) continue;
+      
       bool isPassFastSim = doDiceRoll(1, priorTrack->Pt());
       h_prior_pt->Fill(priorTrack->Pt());
       h_prior_phi->Fill(priorTrack->Phi());
@@ -245,7 +246,6 @@ void eventLoop(){
     int triggerTrackIndex = gRandom->Uniform(vec_trigPt.size());
     trigPt = vec_trigPt[triggerTrackIndex]; 
     trigPhi = TVector2::Phi_0_2pi(vec_trigPhi[triggerTrackIndex]);
-
 
     JetDefinition   jet_def(antikt_algorithm, jetRadius);
     GhostedAreaSpec  area_spec(1.0);
@@ -333,11 +333,13 @@ void eventLoop(){
       int tmpIndex = -1;
       vector<int> priorIndexVector;
       vector<double> priorPtVector;
+      double priorPt; 
       for (int c = 0; c < consties.size(); c++) { 
         PseudoJet consti = consties[c];
         int index = consti.user_index(); 
         if (index > 0) {
           tmpIndex = index; 
+          priorPt = consti.pt();
           priorIndexVector.push_back(index); 
           priorPtVector.push_back(consti.pt());
           }
@@ -345,7 +347,7 @@ void eventLoop(){
 
       if(priorIndexVector.size() > 1) {
         double largestPt = -999;
-        cout << priorIndexVector.size() << endl;
+        //cout << priorIndexVector.size() << endl;
         for (int ct = 0; ct < priorIndexVector.size(); ct++) {
             int priorRecoilIndex = priorIndexVector[ct]; 
             double priorRecoilPt = priorPtVector[ct];
@@ -354,13 +356,12 @@ void eventLoop(){
               tmpIndex = priorRecoilIndex;
             }
             //cout << " " << priorIndexVector[ct] << " " << priorPtVector[ct] << endl; 
-            //cout << "   CrossCheck : " <<  detLevelJets[priorRecoilIndex].pt() << endl;
           }
         //cout << "---------> largest pt : " << largestPt << " "<< tmpIndex << " " << detLevelJets[tmpIndex].pt() << endl;
         }
 
       //cout << "ORDINARY CASE : " << 
-      if (tmpIndex > 0) cout << tmpIndex << endl;
+      //if (tmpIndex > 0) cout << tmpIndex << endl;
 
       jet.set_user_index(tmpIndex); 
       if (!(dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4)) continue;
@@ -372,17 +373,30 @@ void eventLoop(){
       recoJet->SetArea(jet.area()); 
       recoJet->SetPtc(ptc);
       recoJet->SetUserIndex(tmpIndex);
+
+      if (tmpIndex > 0 && ptc > 15 && detLevelJets[tmpIndex].pt() < 5) {
+        cout << "   CrossCheck : " <<  detLevelJets[tmpIndex].pt() << " " << priorPt << " " << ptc << endl;
+        for (int ttt = 0; ttt < jet.constituents().size(); ttt++) {
+          PseudoJet tmpComsti = jet.constituents()[ttt];
+          int INDEX = tmpComsti.user_index();
+          cout <<"        ????? : " << tmpComsti.pt() << endl;
+          //if (INDEX > 0) { 
+          //}
+        }
+        }
+
       //cout << "  input index : " << jet.user_index() << " result index : " << recoJet->userIndex()<< endl; 
       fillIndex++;
     }
     fillIndex=0;
 
+    //cout << tca_pltLevelJets->GetEntries() << " " << tca_pltLevelJets->GetEntriesFast() << endl;
     embeddedTree->Fill(); 
     tca_MB_tracks->Delete(); 
     tca_priorTracks->Delete(); 
     tca_pltLevelJets->Delete();
     tca_detLevelJets->Delete();
-    tca_pltLevelJets->Delete();
+    tca_recoLevelJets->Delete();
     finMinBias->Close(); 
   }
 } 
@@ -398,7 +412,7 @@ void MinBiasEmbedding(){
 
 #ifdef LOCALTEST 
   cout << "SIBAL THIS IS FUNCKING LOCAL TEST" << endl;  
-  init(-123, k510, kZr, kCent);
+  init(-123, k40200, kZr, kCent);
 #endif 
   eventLoop();
 
