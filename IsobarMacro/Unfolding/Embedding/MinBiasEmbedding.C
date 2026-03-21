@@ -201,7 +201,6 @@ void eventLoop(){
   
     vector<double> vec_trigPhi;
     vector<double> vec_trigPt;
-
     if (tca_priorTracks->GetEntriesFast() == 0) continue;
 
     vector<PseudoJet> pltLevelTracks;
@@ -239,7 +238,10 @@ void eventLoop(){
       h_prior_pt_fs->Fill(priorTrack->Pt());
     }
 
-    if (vec_trigPt.size() == 0) continue;
+    if (vec_trigPt.size() == 0) {
+      finMinBias->Close(); 
+      continue;
+    }
     int triggerTrackIndex = gRandom->Uniform(vec_trigPt.size());
     trigPt = vec_trigPt[triggerTrackIndex]; 
     trigPhi = TVector2::Phi_0_2pi(vec_trigPhi[triggerTrackIndex]);
@@ -396,7 +398,7 @@ void MinBiasEmbedding(){
 
 #ifdef LOCALTEST 
   cout << "SIBAL THIS IS FUNCKING LOCAL TEST" << endl;  
-  init(-999, k510, kZr, kCent);
+  init(-123, k510, kZr, kCent);
 #endif 
   eventLoop();
 
