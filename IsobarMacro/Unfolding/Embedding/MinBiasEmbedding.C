@@ -139,6 +139,7 @@ void init(int p6FileIndex, int kHatBinType, int kSys, int kCentrality){
     embeddedTree->Branch("pltLevelJets", &tca_pltLevelJets);
     embeddedTree->Branch("detLevelJets", &tca_detLevelJets);
     embeddedTree->Branch("recoLevelJets", &tca_recoLevelJets); 
+
     embeddedTree->Branch("triggerPt", &trigPt);
     embeddedTree->Branch("triggerPhi", &trigPhi);
     
@@ -215,8 +216,9 @@ void eventLoop(){
     for (int ei = 0; ei < tca_priorTracks->GetEntriesFast(); ei++) { 
       TParticle *priorTrack = (TParticle*)tca_priorTracks->At(ei);
       if (priorTrack->Pt() < 0.2) continue;
+      if (priorTrack->Pt() > 25.0) continue; 
       if (TMath::Abs(priorTrack->Eta()) > 1.0) continue;
-      
+
       bool isPassFastSim = doDiceRoll(1, priorTrack->Pt());
       h_prior_pt->Fill(priorTrack->Pt());
       h_prior_phi->Fill(priorTrack->Phi());
@@ -269,6 +271,7 @@ void eventLoop(){
       pltJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
       pltJet->SetPhiEta(jet_phi, jet_eta); 
       pltJet->SetArea(jet.area()); 
+      //cout << "pltJet : " << i << " " << ji << " "<< pltJet->pt() << " " << pltJet->phi() << " " << pltJet->eta() << endl; 
       fillIndex++;
     }
     fillIndex = 0;
@@ -290,16 +293,16 @@ void eventLoop(){
         detJet->SetUserIndex(ji);
         recoLevelTracks.push_back(jet);
         fillIndex++;
+        //cout << "detjet : " << i << " " << ji << " "<< detJet->pt() << " " << detJet->phi() << " " << detJet->eta() << endl; 
+
       } 
       
       if (!isRecoil) {
         recoLevelTracks.push_back(jet);
       }
-      //cout << "   " << jet.user_index() << " " << detLevelJets.size() << endl;
     }
     fillIndex=0;
 
-    //recoLevelTracks = JetEmbedding(tca_MB_tracks, detLevelJets);
     for (int jei = 0; jei < tca_MB_tracks->GetEntriesFast(); jei++){
       TParticle *mb_track = (TParticle*)tca_MB_tracks->At(jei);
       double track_eta = mb_track->Eta(); 
@@ -329,6 +332,11 @@ void eventLoop(){
       double area = jet.area(); 
       double ptc = pt - rho * area;
       double dphi = TVector2::Phi_0_2pi(trigPhi - jet_phi);
+      PseudoJet a4 = jet.area_4vector(); 
+      PseudoJet correctionVector = PseudoJet(rho * a4.px(), rho * a4.py(), (rho + rhoM) * a4.pz(), (rho + rhoM) * a4.e());
+      double correctionFactor = correctionVector.m();
+      double cm2 = (jet - correctionVector).m2();
+
       vector<PseudoJet> consties = jet.constituents();
       int tmpIndex = -1;
       vector<int> priorIndexVector;
@@ -355,13 +363,8 @@ void eventLoop(){
               largestPt = priorRecoilPt;
               tmpIndex = priorRecoilIndex;
             }
-            //cout << " " << priorIndexVector[ct] << " " << priorPtVector[ct] << endl; 
           }
-        //cout << "---------> largest pt : " << largestPt << " "<< tmpIndex << " " << detLevelJets[tmpIndex].pt() << endl;
         }
-
-      //cout << "ORDINARY CASE : " << 
-      //if (tmpIndex > 0) cout << tmpIndex << endl;
 
       jet.set_user_index(tmpIndex); 
       if (!(dphi > 3*TMath::Pi()/4 && dphi < 5*TMath::Pi()/4)) continue;
@@ -372,25 +375,11 @@ void eventLoop(){
       recoJet->SetPhiEta(jet_phi, jet_eta); 
       recoJet->SetArea(jet.area()); 
       recoJet->SetPtc(ptc);
+      recoJet->SetM2c(cm2);
       recoJet->SetUserIndex(tmpIndex);
-
-      if (tmpIndex > 0 && ptc > 15 && detLevelJets[tmpIndex].pt() < 5) {
-        cout << "   CrossCheck : " <<  detLevelJets[tmpIndex].pt() << " " << priorPt << " " << ptc << endl;
-        for (int ttt = 0; ttt < jet.constituents().size(); ttt++) {
-          PseudoJet tmpComsti = jet.constituents()[ttt];
-          int INDEX = tmpComsti.user_index();
-          cout <<"        ????? : " << tmpComsti.pt() << endl;
-          //if (INDEX > 0) { 
-          //}
-        }
-        }
-
-      //cout << "  input index : " << jet.user_index() << " result index : " << recoJet->userIndex()<< endl; 
       fillIndex++;
     }
     fillIndex=0;
-
-    //cout << tca_pltLevelJets->GetEntries() << " " << tca_pltLevelJets->GetEntriesFast() << endl;
     embeddedTree->Fill(); 
     tca_MB_tracks->Delete(); 
     tca_priorTracks->Delete(); 
@@ -403,7 +392,6 @@ void eventLoop(){
 
 void finish(){ 
   fout->cd(); 
-  //embeddedTree->Write();
   fout->Write(); 
   fout->Close(); 
 }
