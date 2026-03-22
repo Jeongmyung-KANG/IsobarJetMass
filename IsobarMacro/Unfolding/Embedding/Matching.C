@@ -63,8 +63,16 @@ double priorWeight;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 TFile *fout;
+
+
+//response matrix
 TH2F *h_response_bkg_ptc; 
 TH2F *h_response_det_pt; 
+
+//efficiency
+TH1F *h_matched_det_level;
+TH1F *h_matched_plt_level; 
+
 //////////////////////////////////////////////////////////////////////////////////////////
 
 double pythiaWeight = 1;
@@ -115,6 +123,13 @@ void init(int fileIndex, int kHatBinType, int kSys, int kCentrality) {
     fout = new TFile(foutName, "RECREATE"); 
     h_response_bkg_ptc = new TH2F("h_response_bkg_ptc", "h_response_bkg_ptc", 200, -50, 200, 200, -50, 200); 
     h_response_det_pt  = new TH2F("h_response_det_pt", "h_response_det_pt", 200, -50, 200, 200, -50, 200); 
+    h_response_bkg_ptc->Sumw2();
+    h_response_det_pt->Sumw2(); 
+
+    h_matched_det_level = new TH1F("h_matched_det_level", "h_matched_det_level", 100, 0, 100); 
+    h_matched_plt_level = new TH1F("h_matched_plt_level", "h_matched_plt_level", 100, 0, 100);
+    h_matched_det_level->Sumw2(); 
+    h_matched_plt_level->Sumw2();
     //------------------------------------------------------------------------------------------------------------------------------------------
 }
 
@@ -173,15 +188,19 @@ void Matching(){
 
         //plt ---> det level matchig -----------------------------------------------------------------------------
         for (int ip = 0; ip < nPltLevelJets; ip++) {
+            bool isPltJetMatchedDetJet = false;
+            TString matchedName[2] = {"failed", "matched"};
             TrackLevelJetArray *pltJet = (TrackLevelJetArray*)tca_pltLevelJets->At(ip);
             double pltJetPt = pltJet->pt();
-            double pltJetPhi = pltJet->phi(); 
+            double pltJetPhi = TVector2::Phi_0_2pi(pltJet->phi()); 
             double pltJetEta = pltJet->eta();
+
+            h_matched_plt_level->Fill(pltJetPt, priorWeight);
 
             for (int id = 0; id < matchedDetRecoIndices.size(); id++){
                 TrackLevelJetArray *detJet = (TrackLevelJetArray*)tca_detLevelJets->At(matchedDetRecoIndices[id]);
                 double detJetPt = detJet->pt();
-                double detJetPhi = detJet->phi(); 
+                double detJetPhi = TVector2::Phi_0_2pi(detJet->phi()); 
                 double detJetEta = detJet->eta();
                 double dR = GetDeltaR(pltJet, detJet);
                 double nom;
@@ -196,14 +215,18 @@ void Matching(){
                     denom = pltJetPt;
                 }
                
-
                 double fraction = denom / nom;
 
+                cout << "       " << dR << " " << fraction << " " << pltJetPt << " " << detJetPt << endl; 
                 if (dR < 0.4 && fraction > 0.75) {
-                    cout << e << "  "<< fraction << " " << pltJetPt << " " << detJetPt << " " << detJetPt / pltJetPt << endl;
+                    //cout << "-----------> " << e << "  "<< fraction << " " << pltJetPt << " " << detJetPt << " " << detJetPt / pltJetPt << endl;
                     h_response_det_pt->Fill(detJetPt, pltJetPt);
-                    }
+                    h_matched_det_level->Fill(pltJetPt, priorWeight);
+                    isPltJetMatchedDetJet = true;
+                }
             }
+
+            cout << e << " " << ip << " " << matchedName[isPltJetMatchedDetJet] << " " << pltJetPt  << " " << pltJet->area() << endl; 
         }        
 
         //-----------------------------------------------------------------------------
