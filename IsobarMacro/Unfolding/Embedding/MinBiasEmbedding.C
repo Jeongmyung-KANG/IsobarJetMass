@@ -112,7 +112,9 @@ void init(int p6FileIndex, int kHatBinType, int kSys, int kCentrality){
     }
 
 #ifdef LOCALTEST 
-    TString p6FileName = Form("../genMc/mc_res_%s_1.root", pythiaHatBinName.Data());   
+    //TString p6FileName = Form("../genMc/mc_res_%s_1.root", pythiaHatBinName.Data());   
+    TString p6FileName = Form("test.root");   
+
     fin_pythia_fastSim = TFile::Open(p6FileName); 
     f_mb_summary = TFile::Open(Form("/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/Embedding/MB_summary.root"));
     summaryTree = (TTree*)f_mb_summary->Get("summaryTree");
@@ -174,7 +176,7 @@ bool doDiceRoll(double charge, double pt) {
 }
 
 void eventLoop(){ 
-  TTree *priorTree = (TTree*)fin_pythia_fastSim->Get("tree");  
+  TTree *priorTree = (TTree*)fin_pythia_fastSim->Get("outtree");  
   TClonesArray *tca_priorTracks = new TClonesArray("TParticle", 10000000);  
   TClonesArray *tca_MB_tracks = new TClonesArray("TParticle", 10000000); 
 
@@ -183,7 +185,9 @@ void eventLoop(){
   
   
 
-  int nPriorEvents = priorTree->GetEntries();
+  //int nPriorEvents = priorTree->GetEntries();
+  int nPriorEvents = 30000;
+
   cout << "tot event : " << priorTree->GetEntries() << endl;
   for (int i = 0; i < nPriorEvents; i++) { 
     if (i % 100 ==0) cout << "event : " << i << endl; 
@@ -400,7 +404,7 @@ void MinBiasEmbedding(){
 
 #ifdef LOCALTEST 
   cout << "SIBAL THIS IS FUNCKING LOCAL TEST" << endl;  
-  init(-123, k40200, kZr, kCent);
+  init(-123, k510, kZr, kCent);
 #endif 
   eventLoop();
 
