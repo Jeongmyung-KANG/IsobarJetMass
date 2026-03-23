@@ -185,8 +185,11 @@ void eventLoop(){
   
   
 
-  //int nPriorEvents = priorTree->GetEntries();
-  int nPriorEvents = 30000;
+  #ifdef LOCALTEST
+    int nPriorEvents = 30000;
+  #else
+    int nPriorEvents = priorTree->GetEntries();
+  #endif
 
   cout << "tot event : " << priorTree->GetEntries() << endl;
   for (int i = 0; i < nPriorEvents; i++) { 
@@ -349,7 +352,7 @@ void eventLoop(){
       for (int c = 0; c < consties.size(); c++) { 
         PseudoJet consti = consties[c];
         int index = consti.user_index(); 
-        if (index > 0) {
+        if (index >= 0) {
           tmpIndex = index; 
           priorPt = consti.pt();
           priorIndexVector.push_back(index); 
@@ -376,6 +379,7 @@ void eventLoop(){
       if (area < areaCut) continue; 
       TrackLevelJetArray *recoJet = new ((*tca_recoLevelJets)[fillIndex]) TrackLevelJetArray();
       recoJet->SetPxPyPzE(jet.px(), jet.py(), jet.pz(), jet.e());
+      //cout << "cal : " << jet.e()*jet.e() - jet.px()*jet.px() -jet.py()*jet.py() -jet.pz()*jet.pz() << endl;
       recoJet->SetPhiEta(jet_phi, jet_eta); 
       recoJet->SetArea(jet.area()); 
       recoJet->SetPtc(ptc);
@@ -409,7 +413,6 @@ void MinBiasEmbedding(){
   eventLoop();
 
   finish();
-
 }
 
 

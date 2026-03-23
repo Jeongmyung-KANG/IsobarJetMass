@@ -24,7 +24,7 @@
 
 double GetDeltaR(TrackLevelJetArray *x, TrackLevelJetArray *y) { 
     double dEta = x->eta() - y->eta();
-    double dPhi = TVector2::Phi_0_2pi(TVector2::Phi_0_2pi(x->phi()) - TVector2::Phi_0_2pi(y->phi()));
+    double dPhi = TVector2::Phi_mpi_pi(TVector2::Phi_mpi_pi(x->phi()) - TVector2::Phi_mpi_pi(y->phi()));
     return TMath::Sqrt(dEta*dEta + dPhi*dPhi); 
 }
 
@@ -46,6 +46,7 @@ TString HatBinNames[nPythiaHatBins] = {"510", "1015", "1520", "2025", "2530", "3
 double HatBinWeights[nPythiaHatBins] = {1.910e-01, 5.190e-03, 4.572e-04, 6.321e-05, 1.159e-05, 2.895e-06, 1.567e-07};
 enum PriorJetTypes {kParticleLevel, kDetectorLevel, kRecoLevel, nPriorJetTypes};
 TString PriorTreeNames[nPriorJetTypes] = {"pltLevelTree", "detLevelTree", "recoLevelTree"};
+TString PriorHistName[nPriorJetTypes] = {"pltLevel", "detLevel", "recoLevel"};
 
 //////////////////////////////////////////////////////////////////////////////////////////
 TFile *fin; 
@@ -59,20 +60,21 @@ double priorWeight;
 //////////////////////////////////////////////////////////////////////////////////////////
 
 
-
-
 //////////////////////////////////////////////////////////////////////////////////////////
 TFile *fout;
 
 
 //response matrix
-TH2F *h_response_bkg_ptc; 
+TH2F *h_response_bkg_pt; 
 TH2F *h_response_det_pt; 
+TH2F *h_response_cum_pt; 
+
 
 //efficiency
-TH1F *h_matched_det_level;
-TH1F *h_matched_plt_level; 
-
+TH1F *h_pt[nPriorJetTypes];
+TH2F *h_pt_m2[nPriorJetTypes];
+TH1F *h_matched_pt[nPriorJetTypes];
+TH2F *h_matched_pt_m2[nPriorJetTypes]; 
 //////////////////////////////////////////////////////////////////////////////////////////
 
 double pythiaWeight = 1;
@@ -92,11 +94,7 @@ void init(int fileIndex, int kHatBinType, int kSys, int kCentrality) {
         finName = Form("%s_%s_%s_hybridEvent.root", SysName[kSys].Data(), CentralityName[kCentrality].Data(), pythiaHatBinName.Data()); 
         foutLocation = "/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/Embedding";
         foutName = Form("%s_%s_%s_matchingResult.root", SysName[kSys].Data(), CentralityName[kCentrality].Data(), pythiaHatBinName.Data());
-    #endif  
-    
-
-
-
+    #endif 
     
     //------------------------------------------------------------------------------------------------------------------------------------------
     fin = TFile::Open(finName);
@@ -116,20 +114,33 @@ void init(int fileIndex, int kHatBinType, int kSys, int kCentrality) {
     //------------------------------------------------------------------------------------------------------------------------------------------
 
 
-
-
-
     //------------------------------------------------------------------------------------------------------------------------------------------
     fout = new TFile(foutName, "RECREATE"); 
-    h_response_bkg_ptc = new TH2F("h_response_bkg_ptc", "h_response_bkg_ptc", 200, -50, 200, 200, -50, 200); 
-    h_response_det_pt  = new TH2F("h_response_det_pt", "h_response_det_pt", 200, -50, 200, 200, -50, 200); 
-    h_response_bkg_ptc->Sumw2();
+    h_response_bkg_pt = new TH2F("h_response_bkg_pt", "h_response_bkg_pt", 300, -50, 100, 300, -50, 100); 
+    h_response_det_pt  = new TH2F("h_response_det_pt", "h_response_det_pt", 300, -50, 100, 300, -50, 100); 
+    h_response_cum_pt  = new TH2F("h_response_cum_pt", "h_response_cum_pt", 300, -50, 100, 300, -50, 100);
+    h_response_bkg_pt->Sumw2();
     h_response_det_pt->Sumw2(); 
+    h_response_cum_pt->Sumw2();
 
-    h_matched_det_level = new TH1F("h_matched_det_level", "h_matched_det_level", 100, 0, 100); 
-    h_matched_plt_level = new TH1F("h_matched_plt_level", "h_matched_plt_level", 100, 0, 100);
-    h_matched_det_level->Sumw2(); 
-    h_matched_plt_level->Sumw2();
+    for (int i = 0; i < nPriorJetTypes; i++){ 
+        TString ptHistName = Form("h_%s_pt", PriorHistName[i].Data());
+        h_pt[i] = new TH1F(ptHistName, ptHistName, 300, -50, 100);
+        TString ptm2HistName = Form("h_%s_pt_m2", PriorHistName[i].Data());
+        h_pt_m2[i] = new TH2F(ptm2HistName, ptm2HistName, 300, -50, 100, 300, -20, 130);
+        TString matchedPtHistName = Form("h_matched_%s_pt", PriorHistName[i].Data());
+        h_matched_pt[i] = new TH1F(matchedPtHistName, matchedPtHistName, 300, -50, 100); 
+        TString matchedPtM2HistName = Form("h_matched_%s_pt_m2", PriorHistName[i].Data());
+        h_matched_pt_m2[i] = new TH2F(matchedPtM2HistName, matchedPtM2HistName, 300, -50, 100, 300, -20, 130); 
+        
+        cout << ptHistName << " " <<ptm2HistName << endl;
+        
+        h_pt[i]->Sumw2();
+        h_pt_m2[i]->Sumw2();
+        h_matched_pt[i]->Sumw2();
+        h_matched_pt_m2[i]->Sumw2();
+    }
+
     //------------------------------------------------------------------------------------------------------------------------------------------
 }
 
@@ -142,7 +153,7 @@ void Matching(){
 
     #ifdef LOCALTEST 
     R__LOAD_LIBRARY(/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/Utils/libTools.so);
-    init(1, k40200, kZr, kCent);
+    init(1, k510, kZr, kCent);
     #endif
 
     //cout << priorTree->GetEntries() << " " << tca_detLevelJets->GetEntries() << " " << tca_recoLevelJets->GetEntries() << endl;
@@ -159,79 +170,79 @@ void Matching(){
 
         //cout << nPltLevelJets << " " << nDetLevelJets << " " << nRecoLevelJets << endl; 
 
-        //det ---> reco level matching---------------------------------------------------------------------------------------------
-        vector<int> matchedDetRecoIndices;
-
-        for (int id = 0; id < nDetLevelJets; id++){
-            TrackLevelJetArray *detJet = (TrackLevelJetArray*)tca_detLevelJets->At(id);
-            bool isRecoDetMatched = false; 
-            double detJetPt = detJet->pt();
-            int priorIndexInDetJet = detJet->userIndex();
-            if (priorIndexInDetJet < 0) continue;
-            //cout << priorIndexInDetJet << endl;
-            for (int ir = 0; ir < nRecoLevelJets; ir++){
-                TrackLevelJetArray *recoJet = (TrackLevelJetArray*)tca_recoLevelJets->At(ir);
-                int priorIndexInRecoJet = recoJet->userIndex();
-                double recoJetPtc = recoJet->ptc();
-                if (priorIndexInRecoJet < 0) continue;
-                if (priorIndexInDetJet == priorIndexInRecoJet) {
-                    h_response_bkg_ptc->Fill(recoJetPtc, detJetPt, priorWeight); 
-                    isRecoDetMatched = true; 
-                    //cout << recoJetPtc << " " << detJetPt << endl;
-                    matchedDetRecoIndices.push_back(id);
-                }
-            }
-        }   
-        //end reco level matching---------------------------------------------------------------------------------------------
-        
-        if (matchedDetRecoIndices.size() == 0) continue;
-
-        //plt ---> det level matchig -----------------------------------------------------------------------------
         for (int ip = 0; ip < nPltLevelJets; ip++) {
             bool isPltJetMatchedDetJet = false;
             TString matchedName[2] = {"failed", "matched"};
             TrackLevelJetArray *pltJet = (TrackLevelJetArray*)tca_pltLevelJets->At(ip);
             double pltJetPt = pltJet->pt();
-            double pltJetPhi = TVector2::Phi_0_2pi(pltJet->phi()); 
-            double pltJetEta = pltJet->eta();
+            double pltJetM2 = (pltJet->m()) * (pltJet->m()); 
+            double matchedPltJetPt = -999;
+            double matchedDetJetPt = -999;
+            double matchedRecoJetPtc = -999;
+            double matchedPltJetM2 = -999; 
+            double matchedDetJetM2 = -999; 
+            double matchedRecoJetM2 = -999; 
 
-            h_matched_plt_level->Fill(pltJetPt, priorWeight);
+            h_pt[kParticleLevel]->Fill(pltJetPt, priorWeight); 
+            h_pt_m2[kParticleLevel]->Fill(pltJetPt, pltJetM2, priorWeight);
 
-            for (int id = 0; id < matchedDetRecoIndices.size(); id++){
-                TrackLevelJetArray *detJet = (TrackLevelJetArray*)tca_detLevelJets->At(matchedDetRecoIndices[id]);
-                double detJetPt = detJet->pt();
-                double detJetPhi = TVector2::Phi_0_2pi(detJet->phi()); 
-                double detJetEta = detJet->eta();
-                double dR = GetDeltaR(pltJet, detJet);
-                double nom;
-                double denom;
+            for (int id = 0; id < nDetLevelJets; id ++) {
+                TrackLevelJetArray *detJet = (TrackLevelJetArray*)tca_detLevelJets->At(id); 
+                double detJetPt = detJet->pt(); 
+                double detJetM2 = detJet->m() * detJet->m(); 
+                int detUserIndex = detJet->userIndex(); 
+                int nMatchedDetIndex = 0; 
+                double dR = GetDeltaR(pltJet, detJet); 
+                
+                if (dR > 0.4) continue;
+                double fraction = detJetPt / pltJetPt;
+                if (detJetPt > pltJetPt) fraction = pltJetPt / detJetPt;
+                if (fraction < 0.15) continue;
 
-                if (pltJetPt >= detJetPt) {
-                    nom = pltJetPt;
-                    denom = detJetPt;
+                for (int ir = 0; ir < nRecoLevelJets; ir++){ 
+                    TrackLevelJetArray *recoJet = (TrackLevelJetArray*)tca_recoLevelJets->At(ir); 
+                    double recoJetPt = recoJet->ptc(); 
+                    double recoJetM2 = recoJet->m2c();
+                    int recoUserIndex = recoJet->userIndex(); 
+
+                    if (recoUserIndex == detUserIndex) {
+                        nMatchedDetIndex ++;
+                        matchedRecoJetPtc = recoJetPt;    
+                        matchedRecoJetM2  = recoJetM2;
+                    }
                 }
-                if (pltJetPt <= detJetPt) {
-                    nom = detJetPt;
-                    denom = pltJetPt;
-                }
-               
-                double fraction = denom / nom;
 
-                cout << "       " << dR << " " << fraction << " " << pltJetPt << " " << detJetPt << endl; 
-                if (dR < 0.4 && fraction > 0.75) {
-                    //cout << "-----------> " << e << "  "<< fraction << " " << pltJetPt << " " << detJetPt << " " << detJetPt / pltJetPt << endl;
-                    h_response_det_pt->Fill(detJetPt, pltJetPt);
-                    h_matched_det_level->Fill(pltJetPt, priorWeight);
-                    isPltJetMatchedDetJet = true;
-                }
+                if (nMatchedDetIndex == 0) continue;
+                isPltJetMatchedDetJet = true;
+                matchedDetJetPt = detJetPt; 
+                matchedDetJetM2 = detJetM2;
             }
 
-            cout << e << " " << ip << " " << matchedName[isPltJetMatchedDetJet] << " " << pltJetPt  << " " << pltJet->area() << endl; 
+            if (isPltJetMatchedDetJet) { 
+                h_matched_pt[kParticleLevel]->Fill(pltJetPt, priorWeight);
+                h_matched_pt[kDetectorLevel]->Fill(matchedDetJetPt, priorWeight);
+                h_matched_pt[kRecoLevel]->Fill(matchedRecoJetPtc, priorWeight);
+                h_matched_pt_m2[kParticleLevel]->Fill(pltJetPt, pltJetM2, priorWeight);
+                cout << pltJetM2 << " " << matchedDetJetM2 << " " << matchedRecoJetM2 << endl;
+                h_response_cum_pt->Fill(matchedRecoJetPtc, pltJetPt, priorWeight);
+                h_response_det_pt->Fill(matchedDetJetPt, pltJetPt, priorWeight); 
+                h_response_bkg_pt->Fill(matchedRecoJetPtc, matchedDetJetPt, priorWeight);
+            }
         }        
 
-        //-----------------------------------------------------------------------------
         
+        for (int id = 0; id < nDetLevelJets; id++){
+            TrackLevelJetArray *detJet = (TrackLevelJetArray*)tca_detLevelJets->At(id); 
+            double detJetPt = detJet->pt(); 
+            h_pt[kDetectorLevel]->Fill(detJetPt, priorWeight); 
+        }
 
+        for (int ir = 0; ir < nRecoLevelJets; ir++) { 
+            TrackLevelJetArray *recoJet = (TrackLevelJetArray*)tca_recoLevelJets->At(ir);
+        }
+        
+        //-----------------------------------------------------------------------------
+        tca_pltLevelJets->Delete();
         tca_detLevelJets->Delete();
         tca_recoLevelJets->Delete();
     }
