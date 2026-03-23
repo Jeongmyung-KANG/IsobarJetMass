@@ -22,7 +22,16 @@ TrackLevelJetArray::~TrackLevelJetArray(){
     __constiPrioIndexVector.clear(); 
 }
 
-void TrackLevelJetArray::SetPxPyPzE(double x, double y, double z, double _e) {__px = x; __py = y; __pz = z; _e = __e; __pt = TMath::Sqrt(x*x + y*y); __m = TMath::Sqrt(_e*_e - x*x - y*y - z*z);}
+void TrackLevelJetArray::SetPxPyPzE(double x, double y, double z, double _e) {
+    __px = x; 
+    __py = y; 
+    __pz = z; 
+    __e = _e; 
+    __pt = TMath::Sqrt(x*x + y*y); 
+    __m = TMath::Sqrt(__e*__e - __px*__px - __py*__py - __pz*__pz);
+    //std::cout <<"in class : "<<  __m << " " << _e*__e - __px*__px - __py*__py - __pz*__pz << std::endl;
+    __m2 = __e*__e - __px*__px - __py*__py - __pz*__pz;
+    }
 void TrackLevelJetArray::SetPhiEta(double p, double e) {__phi = p, __eta = e;}
 void TrackLevelJetArray::SetArea(double a) {__area = a;}
 void TrackLevelJetArray::SetAreaFourVector(double x, double y, double z, double e) {__ax =x; __ay = y; __az = z; __ae = e;}

@@ -32,6 +32,7 @@ class TrackLevelJetArray : public TObject{
         double phi() const {return __phi;}
         double eta() const {return __eta;}
         double m() const {return __m;}
+        double m2() const {return __m2;}
         double m2c() const {return __m2c;}
         double area() const {return __area;}
         int userIndex() const {return __userIndex;}
@@ -48,6 +49,7 @@ class TrackLevelJetArray : public TObject{
         double __eta;
         double __phi; 
         double __m;
+        double __m2; 
         double __area;
         double __ax, __ay, __az, __ae; 
         double __ptc;
