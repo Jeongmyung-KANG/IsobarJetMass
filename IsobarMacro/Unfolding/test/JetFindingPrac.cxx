@@ -39,7 +39,7 @@ void init(TString finName, TString treeName, TString branchName){
 }
 
 int main(){ 
-    init("mc_res_1015_1.root", "tree", "tracks");
+    init("/Users/gangjeongmyeong/Star/IsobarMacro/Unfolding/genMc/mc_res_1015_1.root", "tree", "tracks");
 
     int nPythiaEvents = tree->GetEntries(); 
 
